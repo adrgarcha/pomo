@@ -86,6 +86,9 @@ type model struct {
 	sessionCount   int
 	confirmBreak   bool
 	confirmAnother bool
+	tickStep       time.Duration
+	tickInterval   time.Duration
+	demo           bool
 }
 
 func initialModel() model {
@@ -106,10 +109,15 @@ func initialModel() model {
 		progress: p,
 		spinner:  s,
 		quitting: false,
+		tickStep:     time.Second,
+		tickInterval: time.Second,
 	}
 }
 
 func (m model) Init() tea.Cmd {
+	if m.state == stateTimer {
+		return tea.Batch(m.spinner.Tick, m.tick())
+	}
 	return m.spinner.Tick
 }
 
@@ -129,7 +137,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		if m.state == stateTimer {
-			m.remaining -= time.Second
+			m.remaining -= m.tickStep
 			if m.remaining <= 0 {
 				return m, m.completeTimer()
 			}
@@ -152,6 +160,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case spinner.TickMsg:
+		if m.state == stateTimer && m.demo {
+			return m, nil
+		}
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
@@ -184,12 +195,16 @@ func (m model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter", " ":
 		switch m.cursor {
 		case 0: // 25/5
-			m.workDuration = 25 * time.Minute
-			m.breakDuration = 5 * time.Minute
+			if !m.demo {
+				m.workDuration = 25 * time.Minute
+				m.breakDuration = 5 * time.Minute
+			}
 			return m.startWorkSession(), m.tick()
 		case 1: // 50/10
-			m.workDuration = 50 * time.Minute
-			m.breakDuration = 10 * time.Minute
+			if !m.demo {
+				m.workDuration = 50 * time.Minute
+				m.breakDuration = 10 * time.Minute
+			}
 			return m.startWorkSession(), m.tick()
 		case 2: // Exit
 			m.quitting = true
@@ -263,7 +278,7 @@ func (m model) startBreakSession() tea.Model {
 }
 
 func (m model) tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+	return tea.Tick(m.tickInterval, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
@@ -458,6 +473,39 @@ func restMode() {
 	fmt.Println("\n✓ Break complete!")
 }
 
+func demoModel() model {
+	p := progress.New(
+		progress.WithDefaultGradient(),
+		progress.WithWidth(40),
+		progress.WithoutPercentage(),
+	)
+
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF6B6B"))
+
+	const (
+		realDuration    = 6 * time.Second
+		tickInterval    = 100 * time.Millisecond
+		displayDuration = 50 * time.Minute
+	)
+
+	tickStep := displayDuration / (realDuration / tickInterval)
+
+	return model{
+		state:         stateMenu,
+		cursor:        1,
+		workDuration:  displayDuration,
+		breakDuration: 10 * time.Minute,
+		tickStep:      tickStep,
+		tickInterval:  tickInterval,
+		demo:          true,
+		choices:       []string{"25/5 (25m work, 5m break)", "50/10 (50m work, 10m break)", "Exit"},
+		progress:      p,
+		spinner:       s,
+	}
+}
+
 func printUsage() {
 	fmt.Println(titleStyle.Render("🍅 Pomo - Pomodoro Timer"))
 	fmt.Println()
@@ -472,7 +520,6 @@ func printUsage() {
 }
 
 func main() {
-	// Handle command-line arguments
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
 		case "work":
@@ -480,6 +527,14 @@ func main() {
 			return
 		case "rest":
 			restMode()
+			return
+		case "--demo":
+			m := demoModel()
+			p := tea.NewProgram(m)
+			if _, err := p.Run(); err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
 			return
 		case "--help", "-h", "help":
 			printUsage()
@@ -491,7 +546,6 @@ func main() {
 		}
 	}
 
-	// Run interactive TUI mode
 	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
