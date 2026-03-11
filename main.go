@@ -14,7 +14,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Styles
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -48,7 +47,6 @@ var (
 			Padding(1, 2)
 )
 
-// Session types
 type sessionType int
 
 const (
@@ -56,7 +54,6 @@ const (
 	sessionBreak
 )
 
-// States
 type state int
 
 const (
@@ -66,11 +63,9 @@ const (
 	stateComplete
 )
 
-// Messages
 type tickMsg time.Time
 type completeMsg struct{}
 
-// Model
 type model struct {
 	state          state
 	sessionType    sessionType
@@ -146,13 +141,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case completeMsg:
 		if m.sessionType == sessionWork {
-			// Work session complete
 			m.sessionCount++
 			sendNotification("🍅 Pomodoro Complete", "Time to take a well-deserved break! 🧘", "Crystal")
 			m.state = stateConfirm
 			m.confirmBreak = true
 		} else {
-			// Break session complete
 			sendNotification("⏰ Back to Work", "Break time is over. Ready to focus again? 💪", "Crystal")
 			m.state = stateConfirm
 			m.confirmAnother = true
@@ -231,12 +224,10 @@ func (m model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "y", "Y":
 		if m.confirmBreak {
-			// Start break
 			m.confirmBreak = false
 			return m.startBreakSession(), m.tick()
 		}
 		if m.confirmAnother {
-			// Start another pomodoro
 			m.confirmAnother = false
 			return m.startWorkSession(), m.tick()
 		}
@@ -346,13 +337,11 @@ func (m model) viewTimer() string {
 
 	b.WriteString(titleStyle.Render(emoji+" "+sessionName) + "\n\n")
 
-	// Time remaining
 	mins := int(m.remaining.Minutes())
 	secs := int(m.remaining.Seconds()) % 60
 	timeStr := fmt.Sprintf("%02d:%02d", mins, secs)
 	b.WriteString(timeStyle.Render(timeStr) + "\n\n")
 
-	// Progress bar
 	percent := 1.0 - (float64(m.remaining) / float64(m.total))
 	b.WriteString(m.progress.ViewAs(percent) + "\n\n")
 
@@ -399,7 +388,6 @@ func (m model) viewComplete() string {
 	return b.String()
 }
 
-// Notification functions
 func sendNotification(title, message, sound string) error {
 	switch runtime.GOOS {
 	case "darwin":
@@ -458,10 +446,9 @@ func sendNotificationWindows(title, message string) error {
 	return nil
 }
 
-// Simple command-line modes for backward compatibility
 func workMode() {
-	fmt.Println("🍅 Starting 60-minute work session...")
-	time.Sleep(60 * time.Minute)
+	fmt.Println("🍅 Starting 25-minute work session...")
+	time.Sleep(25 * time.Minute)
 	sendNotification("🍅 Pomodoro Complete", "Time to take a well-deserved break! 🧘", "Crystal")
 	fmt.Println("\n✓ Work session complete!")
 }
