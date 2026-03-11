@@ -1,4 +1,4 @@
-module github.com/yourusername/pomo
+module github.com/adrgarcha/pomo
 
 go 1.21
 
