@@ -131,7 +131,7 @@ The beautiful TUI will guide you through:
 
 For simple timers without the TUI:
 
-60-minute work session:
+25-minute work session:
 ```bash
 pomo work
 ```
@@ -141,25 +141,7 @@ pomo work
 pomo rest
 ```
 
-### Environment Variables
 
-Skip the prompt by setting a default split:
-
-```bash
-# macOS/Linux
-export POMO_SPLIT="25/5"
-pomo
-
-# Windows (PowerShell)
-$env:POMO_SPLIT="25/5"
-pomo
-
-# Windows (CMD)
-set POMO_SPLIT=25/5
-pomo
-```
-
-Add to your shell config file (`~/.zshrc`, `~/.bashrc`, or PowerShell profile) to make it permanent.
 
 ## How It Works
 
